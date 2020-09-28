@@ -1,16 +1,5 @@
 /**
- * Simple program demonstrating shared memory in POSIX systems.
- *
- * This is the producer process that writes to the shared memory region.
- *
- * Figure 3.16
- * 
- * To compile, enter
- * 	gcc shm-posix-producer.c -lrt
- *
- * @author Silberschatz, Galvin, and Gagne
- * Operating System Concepts  - Tenth Edition
- * Copyright John Wiley & Sons - 2018
+ * @author Jefferson Flores Herrera 
  */
 
 
@@ -23,12 +12,33 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <time.h>
 
 #define BUFFER_SIZE 10
 
+struct tiempo{
+	int hora, minuto, segundo, milisegundo;
+};
+
+void getHora(struct tiempo *tIn){
+	struct timeval current_time;
+	time_t t;
+	int milisecs;
+	struct tm* info;
+	gettimeofday(&current_time, NULL);
+	t = current_time.tv_sec;
+	info = localtime(&t);
+	milisecs = current_time.tv_usec / 1000;
+	tIn -> hora = info -> tm_hour;
+	tIn -> minuto = info -> tm_min;
+	tIn -> segundo = info -> tm_sec;
+	tIn -> milisegundo = milisecs;
+}
+
 struct item{
 	pid_t pid;
+	struct tiempo horaCreacion;
 } ;
 
 struct region{
@@ -55,25 +65,30 @@ int main()
 	rptr -> in	= 0;
 	rptr -> out = 0;
 
-	struct item next_produced;
+	struct item nextProduced;
+	struct tiempo tempTiempo;
 	pid_t pid;	
+	
 	while(1){
 		pid = fork();
+		getHora(&tempTiempo);
+
 		if(pid < 0){
 			fprintf(stderr, "fork fallo");
 			return 1;//error
 		} else if(pid == 0){
-			next_produced.pid = getpid();
-			printf("[tiempo] P(%d): Creando Proceso %d (tiempo)\n", getppid(), next_produced.pid);
+			nextProduced.pid = getpid();
+			nextProduced.horaCreacion = tempTiempo;
+			struct tiempo messageTiempo;
+			getHora(&messageTiempo);
+			printf("[%d:%d:%d.%d] P(%d): Creando Proceso %d (%d:%d:%d.%d)\n", messageTiempo.hora, messageTiempo.minuto, messageTiempo.segundo, messageTiempo.milisegundo , getppid(), nextProduced.pid, tempTiempo.hora, tempTiempo.minuto, tempTiempo.segundo, tempTiempo.milisegundo);
 		} else{
 			wait(NULL);
 		}
-		//TODO add time creation
-		//TODO add tiempo
 
 		while((((rptr -> in ) + 1) % BUFFER_SIZE) == (rptr -> out))
 			;//buffer lleno no hacer nada
-		rptr -> buffer[rptr -> in] = next_produced;
+		rptr -> buffer[rptr -> in] = nextProduced;
 		rptr -> in = ((rptr -> in) + 1) % BUFFER_SIZE;
 
 		//TODO add random in sleep 1 to 5

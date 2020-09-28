@@ -1,16 +1,5 @@
 /**
- * Simple program demonstrating shared memory in POSIX systems.
- *
- * This is the consumer process
- *
- * Figure 3.18
- *
- * To compile, enter
- *	gcc shm-posix-consumer.c -lrt
- *
- * @author Gagne, Galvin, Silberschatz
- * Operating System Concepts - Tenth Edition
- * Copyright John Wiley & Sons - 2018
+ * @author Jefferson Flores Herrera 
  */
 
 #include <stdio.h>
@@ -20,14 +9,55 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <signal.h>
 #include <time.h>
 #include <string.h>
 
 #define BUFFER_SIZE 10
 
+struct tiempo{
+	int hora, minuto, segundo, milisegundo;
+};
+
+void getHora(struct tiempo *tIn){
+	struct timeval current_time;
+	time_t t;
+	int milisecs;
+	struct tm* info;
+	gettimeofday(&current_time, NULL);
+	t = current_time.tv_sec;
+	info = localtime(&t);
+	milisecs = current_time.tv_usec / 1000;
+	tIn -> hora = info -> tm_hour;
+	tIn -> minuto = info -> tm_min;
+	tIn -> segundo = info -> tm_sec;
+	tIn -> milisegundo = milisecs;
+}
+
+struct tiempo diff( struct tiempo tInicial, struct tiempo tFinal){
+	struct tiempo diffTiempo;
+	if( tFinal.milisegundo < tInicial.milisegundo){
+		tFinal.segundo -= 1;
+		tFinal.milisegundo += 1000;
+	}
+	if(tFinal.segundo < tInicial.segundo){
+		tFinal.minuto -= 1;
+		tFinal.segundo += 60;
+	}
+	if(tFinal.minuto < tInicial.minuto){
+		tFinal.hora -= 1;
+		tFinal.minuto += 60;
+	}
+	diffTiempo.hora = tFinal.hora - tInicial.hora;
+	diffTiempo.minuto = tFinal.minuto - tInicial.minuto;
+	diffTiempo.segundo = tFinal.segundo - tInicial.segundo;
+	diffTiempo.milisegundo = tFinal.milisegundo - tInicial.milisegundo;
+	return diffTiempo;
+}
 struct item{
 	pid_t pid;
+	struct tiempo horaCreacion;
 } ;
 
 struct region{
@@ -58,16 +88,18 @@ int main()
 	}
 
 	/* now read from the shared memory region */
-	struct item next_consumed;
+	struct item nextConsumed;
 	while(1){
 		while(rptr -> in == rptr -> out)
 			; // buffer vacio no hacer nada
-		next_consumed = rptr -> buffer[rptr -> out];
+		nextConsumed = rptr -> buffer[rptr -> out];
 		rptr -> out = ((rptr -> out) + 1) % BUFFER_SIZE;
-		//TODO add tiempo y tiempo vivido
-		printf("[tiempo] C(%d): Matando Proceso %d (vivio tiempo)\n", getpid(), next_consumed.pid);
-		kill(next_consumed.pid, SIGKILL);
-		//TODO add random sleep
+
+		struct tiempo killTiempo;
+		getHora(&killTiempo);	
+		kill(nextConsumed.pid, SIGKILL);
+		struct tiempo diffTiempo = diff(nextConsumed.horaCreacion,killTiempo);	
+		printf("[%d:%d:%d.%d] C(%d): Matando Proceso %d (vivio %d:%d:%d.%d)\n",killTiempo.hora, killTiempo.minuto, killTiempo.segundo, killTiempo.milisegundo, getpid(), nextConsumed.pid, diffTiempo.hora, diffTiempo.minuto, diffTiempo.segundo, diffTiempo.milisegundo );
 		int r = rand() % 5 + 1;
 		sleep(r);
 	}	
