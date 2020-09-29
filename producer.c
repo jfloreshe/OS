@@ -91,7 +91,6 @@ int main()
 		rptr -> buffer[rptr -> in] = nextProduced;
 		rptr -> in = ((rptr -> in) + 1) % BUFFER_SIZE;
 
-		//TODO add random in sleep 1 to 5
 		int r = rand() % 5 + 1;
 		sleep(r);
 	}
