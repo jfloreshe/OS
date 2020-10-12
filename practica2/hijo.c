@@ -59,7 +59,7 @@ int main(){
 		do{
 			//Esperamos que nuestro hijo especifico le hallan mandado una señal de parar o continuar
 			//o halla terminado
-			w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+			w = waitpid(pid, &status, WUNTRACED);
 			//w será -1 cuando pid no exista
 			if(w == -1){
 				continue;
@@ -67,7 +67,7 @@ int main(){
 			}
 			//Si el proceso ha sido parado empezamos a enviar señales
 			//WIFSTOPPED solo puede ser usado si WUNTRACED ha sido especificado
-			else{
+			else if(w == pid){
 				if(WIFSTOPPED(status)){
 					sendSignals(pid);
 				}
@@ -79,23 +79,36 @@ int main(){
 }
 
 void sendSignals(int pidReceiver){
+	if(i < 0 || i >= TOTAL_SIGNALS){
+		perror("Error con el indice de la senal");
+		exit(EXIT_FAILURE);
+	}		
 	//Esta función enviará las señales como se mencionó anteriormente i guarda en la
 	//señal que nos encontramos en nuestro array de señales a enviar
 	//Siempre enviamos una señal de continuar ya que estamos usando señal de parar
 	//en nuestra lógica para poder enviar señales al proceso nieto.c
 	kill(pidReceiver,SIGCONT);
+	int w, status, signalSentStatus;
+	do{
+		w = waitpid(pidReceiver, &status, WCONTINUED);
+	}while( !WIFCONTINUED(status));
 	//Una vez que se envía la señal de continuar nieto.c puede procesar esta 
 	//es ahi que enviamos la nueva señal dependiendo donde se encuentre en nuestro array 
-	int signalSentStatus = kill(pidReceiver,signalsToSend[i]);
-	//como SIGKILL no se puede modificar aumentamos el i para poder usar la siguiente señal
-	//una vez el proceso halla sido matado, si no aumentamos este i seguira matando a los
-	//siguiente nietos creados
-	if(signalsToSend[i] == SIGKILL)
-		i++;
+	do{
+		printf("sending %d", signalsToSend[i]);
+		//como SIGKILL no se puede modificar aumentamos el i para poder usar la siguiente señal
+		//una vez el proceso halla sido matado, si no aumentamos este i seguira matando a los
+		//siguiente nietos creados
+		if(signalsToSend[i] == SIGKILL){
+			i++;
+			kill(pidReceiver, SIGKILL);		
+			break;
+		}
+		signalSentStatus = kill(pidReceiver,signalsToSend[i]);
+	}while(signalSentStatus!=0);
 	//Con signalSentStatus sabemos si la señal ha sido enviado al pid que deseabamos
 	//kill retorna 0 si es asi, -1 si no ha enviado ninguna señal
-	if(signalSentStatus == 0)//succes
-		i++;
+	i++;
 	
 }
 

@@ -42,6 +42,7 @@ void handler(int sig, siginfo_t *siginfo, void *context){
 	//La lógica tras el exit de SIGTSTP es que ya debe haber terminado de enviar todas las señales
 	//recordar que si una señal no era enviada se volvia a enviar hasta que esta halla sido enviada correctamente
 	//entonces siguiendo esta lógica una vez halla llegado a SIGTSTP hijo.c debe haber enviado todas las señales a nieto.c
+	printf("IAM %d ", getpid()); 
 	printf("Signal number: %d Signal code: %d errno value: %d Sending process ID: %d\n",
 			siginfo -> si_signo,
 			siginfo -> si_code,
