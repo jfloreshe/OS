@@ -3,18 +3,44 @@
 			Vanessa Mayra Macedo Huaman
  */
 
-#include <stdio.h>   // puts(), printf()
-#include <signal.h>  // SIGFPE, SIGSEGV, SIGINT
-#include <stdlib.h>  // exit(), EXIT_SUCCESS, EXIT_FAIURE
-#include <unistd.h>  // getpid(), pause()
-#include <sys/wait.h>   // For wait and related macros.
+#include <stdio.h>   
+#include <signal.h>  
+#include <stdlib.h>  
+#include <unistd.h>  
+#include <sys/wait.h> 
 
+//Definimos las señales que recibiremos, SIGKILL y SIGSTOP no se pueden redefinir en un handler
+//es por eso que usamos solo 12 señales
 #define TOTAL_SIGNALS 12
 int signalsToReceive[TOTAL_SIGNALS] = {SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGABRT, SIGFPE, SIGSEGV, SIGPIPE,
 				 SIGALRM, SIGTERM, SIGCHLD, SIGTSTP};
 
+void handler(int , siginfo_t *, void *); //Manejará como se comportará cada señal
+void installSignalsCatcher(struct sigaction *);//Esta función instalará todas las señales que hemos redefinido las cuales se 
+												//encuentran en nuestro array signalsToReceive
+
+int main(){	
+
+	struct sigaction act;
+	act.sa_sigaction = &handler;
+	act.sa_flags = SA_SIGINFO;
+	installSignalsCatcher(&act);
+	//La lógica detrás de esto es que se auto pare, de esta manera hijo.c puede capturar que ha parado en el waitpid
+	//y seguir la lógica explicada en hijo.c, una vez que se le haga un continue sigue ejecutando ya que estamos en un bucle infinito.
+	while(1){
+		kill(getpid(),SIGSTOP);
+	}
+	return 0;
+}
+
 void handler(int sig, siginfo_t *siginfo, void *context){
-		
+	//Lo principal de este handler es que para todos muestra la señal recibida, el codigo de la señal si tubiese alguno como en SIGCHLD
+	//para saber si ha parado o ha sido asesinado, si_errno nos mostrara el codigo de un error, si es que ha ocurrido uno, si_pid 
+	//nos mostrara el pid del proceso que ha enviado la señal.
+	//La lógica tras el exit de SIGTSTP es que ya debe haber terminado de enviar todas las señales
+	//recordar que si una señal no era enviada se volvia a enviar hasta que esta halla sido enviada correctamente
+	//entonces siguiendo esta lógica una vez halla llegado a SIGTSTP hijo.c debe haber enviado todas las señales a nieto.c
+	
 	printf("Signal number: %d Signal code: %d errno value: %d Sending process ID: %d\n",
 			siginfo -> si_signo,
 			siginfo -> si_code,
@@ -22,40 +48,28 @@ void handler(int sig, siginfo_t *siginfo, void *context){
 			siginfo -> si_pid);		
 	switch(sig){
 		case SIGHUP:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGINT:
-			printf("Nueva senal recibida %d, con  si_signo= %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGQUIT:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGILL:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGABRT:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGFPE:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGSEGV:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGPIPE:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGALRM:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGTERM:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGCHLD:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			break;
 		case SIGTSTP:
-			printf("Nueva senal recibida %d, con si_signo = %d, si_code = %d\n", sig, siginfo -> si_signo, siginfo -> si_code);
 			exit(EXIT_SUCCESS);
 			break;
 		default:
@@ -64,20 +78,8 @@ void handler(int sig, siginfo_t *siginfo, void *context){
 			break;
 	}
 }
+
 void installSignalsCatcher(struct sigaction *action){
 	for(int i = 0; i < TOTAL_SIGNALS; i++)
-		sigaction(signalsToReceive[i], action ,NULL);
-	
-}
-int main(){	
-
-	struct sigaction act;
-	act.sa_sigaction = &handler;
-	act.sa_flags = SA_SIGINFO;
-	installSignalsCatcher(&act);
-	while(1){
-		kill(getpid(),SIGSTOP);
-	}
-
-	return 0;
+		sigaction(signalsToReceive[i], action ,NULL);	
 }

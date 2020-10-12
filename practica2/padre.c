@@ -3,27 +3,39 @@
 			Vanessa Mayra Macedo Huaman
  */
 
-#include <stdio.h>   // puts(), printf()
-#include <signal.h>  // SIGFPE, SIGSEGV, SIGINT
-#include <stdlib.h>  // exit(), EXIT_SUCCESS, EXIT_FAIURE
-#include <unistd.h>  // getpid(), pause()
-#include <sys/wait.h>   // For wait and related macros.
+#include <stdio.h>   
+#include <signal.h>  
+#include <stdlib.h>  
+#include <unistd.h>  
+#include <sys/wait.h>   
 
 
 int main(){	
-	pid_t pid = fork(); //Creando desde el padre un nuevo hijo
+	//Creacion de un hijo para ejecutar hijo.c desde padre.c
+	pid_t pid = fork(); 
 	if(pid < 0){
+		//Manda error si no se pudo crear el hijo desde padre.c
 		perror("ERROR; no se pudo crear al hijo desde padre.c\n");	
 		exit(EXIT_FAILURE);
-	}else if(pid == 0){//child process
+	}else if(pid == 0){
+		//llamamos al sistema para que ejecute nuestro hijo.c nótese que los 
+		//programas ya han sido previamente compilados con el make
 		execlp("./hijo","hijo",(char*)NULL);
+		//Solo ejecuta el error si no pudo encontrar el archivo hijo
 		perror("ERROR: hijo.c no se ha ejecutado\n");
 		exit(EXIT_FAILURE);
-	}else{//parent process		
+	}else{
+		/*Creamos la variable waitStatus para poder tener conocimiento
+		 del estado de hijo.c, porque deseamos que hijo.c termine su
+		 ejecución correctamente ya que es un requisito que no termine
+		 padre.c antes que hijo.c
+		*/		
 		int waitStatus;
-		waitpid(-1, &waitStatus, WUNTRACED);
+		waitpid(-1, &waitStatus, 0);
+		//Como se mencionó anteriormente necesitamos saber si hijo.c
+		//ha terminado correctamente para esto usamos WIFEXITED 
+		//que nos retorna true si ha pasado lo mencionado anteriormente
 		if(WIFEXITED(waitStatus)){
-			printf("hijo.c ha finalizado correctamente retornando %d\n", WEXITSTATUS(waitStatus));
 			exit(EXIT_SUCCESS);
 		}
 	}
