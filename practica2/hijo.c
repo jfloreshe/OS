@@ -2,78 +2,69 @@
  * @author Jefferson Flores Herrera 
 			Vanessa Mayra Macedo Huaman
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>   // puts(), printf()
+#include <signal.h>  // SIGFPE, SIGSEGV, SIGINT
+#include <stdlib.h>  // exit(), EXIT_SUCCESS, EXIT_FAIURE
+#include <unistd.h>  // getpid(), pause()
+#include <sys/wait.h>   // For wait and related macros.
 #include <string.h>
-#include <fcntl.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <time.h>
+
+#define TOTAL_SIGNALS 14
+int i = 0;
+
+void sendSignals(int);
+void handlerSGCHLD(int, siginfo_t *, void *);
+
+int signalsToSend[TOTAL_SIGNALS] = {SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGABRT, SIGFPE, SIGKILL, SIGSEGV, SIGPIPE,
+				 SIGALRM, SIGTERM, SIGCHLD, SIGSTOP, SIGTSTP};
 
 int main(){	
-	pid_t pid = fork();
-	int pidNieto;
+
+	int status;
+
+	pid_t w,pid = fork();
 	if(pid < 0){
-		printf("Error");	
+		perror("ERROR; no se pudo crear al nieto desde hijo.c\n");	
+		exit(EXIT_FAILURE);
 	}else if(pid == 0){//child process
-	//	execlp("/usr/bin/gcc", "gcc","nieto.c","-lrt","-o","nieto",(char*)NULL);
-		pidNieto = getpid();
-		execlp("./nieto","nieto",NULL);
+		printf("creating nieto\n");
+		execlp("./nieto","nieto",(char*)NULL);
+		perror("ERROR: nieto.c no se ha ejecutado\n");
+		exit(EXIT_FAILURE);
 	}else{//parent process
-		kill(pidNieto,SIGHUP);
-		sleep(5);
-		printf("executing SIGHUP\n");
-		kill(pidNieto,SIGINT);
-		sleep(5);
-		printf("executing SIGINT\n");
-		kill(pidNieto,SIGQUIT);
-		sleep(5);
-		printf("executing SIGQUIT\n");
-		kill(pidNieto,SIGILL);
-		sleep(5);
-		printf("executing SIGILL\n");
-		kill(pidNieto,SIGABRT);
-		sleep(5);
-		printf("executing SIGABRT\n");
-		kill(pidNieto,SIGFPE);
-		sleep(5);
-		printf("executing SIGFPE\n");
-		kill(pidNieto,SIGKILL);
-		sleep(5);
-		printf("executing SIGKILL\n");
-		kill(pidNieto,SIGSEGV);
-		sleep(5);
-		printf("executing SIGSEGV\n");
-		kill(pidNieto,SIGPIPE);
-		sleep(5);
-		printf("executing SIGPIPE\n");
-		kill(pidNieto,SIGALRM);
-		sleep(5);
-		printf("executing SIGALRM\n");
-		kill(pidNieto,SIGTERM);
-		sleep(5);
-		printf("executing SIGTERM\n");
-		kill(pidNieto,SIGCHLD);
-		sleep(5);
-		printf("executing SIGCHLD\n");
-		kill(pidNieto,SIGSTOP);
-		sleep(5);
-		printf("executing SIGSTOP\n");
-		kill(pidNieto,SIGTSTP);
-		sleep(5);
-		printf("executing SIGTSTP\n");
 		//TODO detectar si el proceso nieto muere
-		int wstatus;
-		wait(&wstatus);
-		if(WIFEXITED(wstatus)){
-			printf("[CHILD] nieto done %d\n", WEXITSTATUS(wstatus));
-		}
+		do{
+			w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+			if(w == -1){
+				perror("el pid que mando no es un proceso\n");
+				exit(EXIT_FAILURE);
+			}
+			if(WIFSTOPPED(status)){
+				sendSignals(pid);
+			}
+		}while(!WIFEXITED(status) && !WIFSIGNALED(status));
+		printf("hijo.c acabo de ejecutarse\n");
 	}
 	
 	return 0;
+}
+
+void sendSignals(int pidReceiver){
+	int pidSender = getpid();
+	printf("Desde proceso %d se esta enviando la senal %d al proceso %d\n",pidSender, signalsToSend[i], pidReceiver);
+	kill(pidReceiver,SIGCONT);
+	int signalSentStatus = kill(pidReceiver,signalsToSend[i]);
+	sleep(5);
+	if(signalSentStatus == 0)//succes
+		i++;
+}
+
+void handlerSGCHLD(int sig, siginfo_t *siginfo, void *context){
+	if(sig == SIGCHLD){
+		if(siginfo -> si_code == CLD_KILLED) ;
+		//add jump
+		else if(siginfo -> si_code == CLD_STOPPED) ;
+			//send signal to continue
+
+	}
 }
