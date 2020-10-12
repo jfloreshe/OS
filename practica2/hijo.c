@@ -59,16 +59,18 @@ int main(){
 		do{
 			//Esperamos que nuestro hijo especifico le hallan mandado una señal de parar o continuar
 			//o halla terminado
-			w = waitpid(-1, &status, WUNTRACED | WCONTINUED);
+			w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
 			//w será -1 cuando pid no exista
 			if(w == -1){
-				perror("el pid que mando no es un proceso\n");
+				continue;
 				exit(EXIT_FAILURE);
 			}
 			//Si el proceso ha sido parado empezamos a enviar señales
 			//WIFSTOPPED solo puede ser usado si WUNTRACED ha sido especificado
-			if(WIFSTOPPED(status)){
-				sendSignals(pid);
+			else{
+				if(WIFSTOPPED(status)){
+					sendSignals(pid);
+				}
 			}
 		}while(!WIFEXITED(status));
 	}
