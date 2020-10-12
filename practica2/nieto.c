@@ -8,6 +8,7 @@
 #include <stdlib.h>  
 #include <unistd.h>  
 #include <sys/wait.h> 
+#include <string.h>
 
 //Definimos las señales que recibiremos, SIGKILL y SIGSTOP no se pueden redefinir en un handler
 //es por eso que usamos solo 12 señales
@@ -22,6 +23,7 @@ void installSignalsCatcher(struct sigaction *);//Esta función instalará todas 
 int main(){	
 
 	struct sigaction act;
+	memset(&act,0,sizeof(act));
 	act.sa_sigaction = &handler;
 	act.sa_flags = SA_SIGINFO;
 	installSignalsCatcher(&act);
